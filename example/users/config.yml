@@ -21,8 +21,6 @@ in:
       - {name: email, type: string}
 out:
   type: datastore
-  project_id: calcium-aria-254518
-  auth_method: service_account
-  json_keyfile: ''
-  kind: Test
+  project_id: dev
+  kind: User
   key_column_name: id
