@@ -1,0 +1,28 @@
+in:
+  type: file
+  path_prefix: ./example/users/users.csv
+  parser:
+    charset: UTF-8
+    newline: CRLF
+    type: csv
+    delimiter: ','
+    quote: '"'
+    escape: '"'
+    null_string: 'NULL'
+    trim_if_not_quoted: false
+    skip_header_lines: 1
+    allow_extra_columns: false
+    allow_optional_columns: false
+    columns:
+      - {name: full_name, type: string}
+      - {name: country, type: string}
+      - {name: created_at, type: timestamp, format: '%Y/%m/%d'}
+      - {name: id, type: long}
+      - {name: email, type: string}
+out:
+  type: datastore
+  project_id: calcium-aria-254518
+  auth_method: service_account
+  json_keyfile: ''
+  kind: Test
+  key_column_name: id
