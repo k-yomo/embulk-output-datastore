@@ -1,44 +1,50 @@
 package org.embulk.output.datastore
 
+import com.google.api.gax.core.CredentialsProvider
+import com.google.api.gax.core.FixedCredentialsProvider
+import com.google.api.gax.core.NoCredentialsProvider
+import com.google.api.gax.rpc.FixedTransportChannelProvider
+import com.google.auth.Credentials
+import com.google.auth.oauth2.*
+import com.google.cloud.datastore.Datastore
+import com.google.cloud.datastore.DatastoreOptions
 import com.google.common.base.Optional
+import io.grpc.ManagedChannelBuilder
 import org.embulk.config.*
-import org.embulk.spi.Exec
-import org.embulk.spi.OutputPlugin
-import org.embulk.spi.Schema
-import org.embulk.spi.TransactionalPageOutput
+import org.embulk.spi.*
+import java.io.ByteArrayInputStream
+
 
 class DatastoreOutputPlugin : OutputPlugin {
     interface PluginTask : Task {
-        // configuration option 1 (required integer)
-        @get:Config("option1")
-        val option1: Int
+        @get:Config("project_id")
+        val projectId: String
 
-        // configuration option 2 (optional string, null is not allowed)
-        @get:ConfigDefault("\"myvalue\"")
-        @get:Config("option2")
-        val option2: String?
+        @get:ConfigDefault("application_default")
+        @get:Config("auth_method")
+        val authMethod: String?
 
-        // configuration option 3 (optional string, null is allowed)
         @get:ConfigDefault("null")
-        @get:Config("option3")
-        val option3: Optional<String?>?
+        @get:Config("json_keyfile")
+        val jsonKeyfile: Optional<String?>?
+
+        @get:Config("kind")
+        val kind: String
+
+        @get:Config("key_column_name")
+        val keyColumnName: String
     }
 
-    override fun transaction(config: ConfigSource,
-                             schema: Schema, taskCount: Int,
-                             control: OutputPlugin.Control): ConfigDiff {
+    override fun transaction(config: ConfigSource, schema: Schema, taskCount: Int, control: OutputPlugin.Control): ConfigDiff {
         val task = config.loadConfig(PluginTask::class.java)
-        // retryable (idempotent) output:
-// return resume(task.dump(), schema, taskCount, control);
-// non-retryable (non-idempotent) output:
-        control.run(task.dump())
-        return Exec.newConfigDiff()
+        return resume(task.dump(), schema, taskCount, control)
     }
 
     override fun resume(taskSource: TaskSource,
                         schema: Schema, taskCount: Int,
                         control: OutputPlugin.Control): ConfigDiff {
-        throw UnsupportedOperationException("datastore output plugin does not support resuming")
+        control.run(taskSource)
+        return Exec.newConfigDiff()
     }
 
     override fun cleanup(taskSource: TaskSource,
@@ -48,6 +54,43 @@ class DatastoreOutputPlugin : OutputPlugin {
 
     override fun open(taskSource: TaskSource, schema: Schema, taskIndex: Int): TransactionalPageOutput {
         val task = taskSource.loadTask(PluginTask::class.java)
-        throw UnsupportedOperationException("DatastoreOutputPlugin.run method is not implemented yet")
+        val pageReader = PageReader(schema)
+        val datastore = initializeDatastoreClient(task.projectId, task.authMethod, task.jsonKeyfile)
+        return DatastorePageOutput(task, pageReader, datastore)
+    }
+
+    private fun initializeDatastoreClient(projectId: String, authMethod: String?, jsonKeyFile: Optional<String?>?): Datastore {
+        return DatastoreOptions.newBuilder()
+                .setProjectId(projectId)
+                .setCredentials(authenticate(authMethod, jsonKeyFile))
+                .build()
+                .service
+    }
+
+    private fun authenticate(authMethod: String?, jsonKeyFile: Optional<String?>?): Credentials {
+        when (authMethod) {
+            "authorized_user" -> {
+                // TODO: パスからも設定できるようにする
+                return ServiceAccountCredentials.fromStream(
+                        ByteArrayInputStream(jsonKeyFile?.get()?.toByteArray())
+                )
+            }
+            "compute_engine" -> {
+                return ComputeEngineCredentials.getApplicationDefault()
+            }
+            "service_account" -> {
+                FixedCredentialsProvider.create(
+                        // TODO: パスからも設定できるようにする
+                        // FileInputStream(task.jsonKeyfile.toString())
+                        ServiceAccountCredentials.fromStream(
+                                ByteArrayInputStream(jsonKeyFile?.get()?.toByteArray())
+                        )
+                ).credentials!!
+            }
+            "application_default" -> {
+                return GoogleCredentials.getApplicationDefault()
+            }
+        }
+        return NoCredentialsProvider().credentials
     }
 }
