@@ -20,9 +20,9 @@ class DatastoreOutputPlugin : OutputPlugin {
         @get:Config("project_id")
         val projectId: String
 
-        @get:ConfigDefault("application_default")
+        @get:ConfigDefault("\"application_default\"")
         @get:Config("auth_method")
-        val authMethod: String?
+        val authMethod: String
 
         @get:ConfigDefault("null")
         @get:Config("json_keyfile")
@@ -31,6 +31,7 @@ class DatastoreOutputPlugin : OutputPlugin {
         @get:Config("kind")
         val kind: String
 
+        @get:ConfigDefault("\"id\"")
         @get:Config("key_column_name")
         val keyColumnName: String
     }
@@ -68,7 +69,7 @@ class DatastoreOutputPlugin : OutputPlugin {
     }
 
     private fun authenticate(authMethod: String?, jsonKeyFile: Optional<String?>?): Credentials {
-        when (authMethod) {
+        return when (authMethod) {
             "authorized_user" -> {
                 // TODO: パスからも設定できるようにする
                 return ServiceAccountCredentials.fromStream(
@@ -90,7 +91,9 @@ class DatastoreOutputPlugin : OutputPlugin {
             "application_default" -> {
                 return GoogleCredentials.getApplicationDefault()
             }
+            else -> {
+                return NoCredentialsProvider().credentials
+            }
         }
-        return NoCredentialsProvider().credentials
     }
 }

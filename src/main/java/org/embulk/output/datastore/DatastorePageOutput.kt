@@ -1,10 +1,6 @@
 package org.embulk.output.datastore
 
-import com.google.api.gax.core.FixedCredentialsProvider
-import com.google.auth.oauth2.ServiceAccountCredentials
-import com.google.cloud.Timestamp
 import com.google.cloud.datastore.Datastore
-import com.google.cloud.datastore.DatastoreOptions
 import com.google.cloud.datastore.Entity
 import com.google.cloud.datastore.Key
 import org.embulk.config.ConfigException
@@ -13,8 +9,7 @@ import org.embulk.spi.*
 import org.embulk.spi.type.Types
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayInputStream
-import java.lang.NullPointerException
+
 
 class DatastorePageOutput(
         private val task: DatastoreOutputPlugin.PluginTask,
@@ -27,6 +22,7 @@ class DatastorePageOutput(
     override fun add(page: Page?) {
         pageReader.setPage(page)
         val batch = datastore.newBatch()
+
         while (pageReader.nextRecord()) {
             val entity = Entity.newBuilder()
             var key: Key? = null
@@ -53,8 +49,8 @@ class DatastorePageOutput(
                         }
                     }
                     Types.TIMESTAMP -> {
-                        val ts = pageReader.getTimestamp(it)
-                        // FIXME: java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkArgument(ZLjava/lang/String;JI)V
+                        // FIXME: code below causes 'java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkArgument'
+//                        val ts = pageReader.getTimestamp(it)
 //                        entity.set(it.name, Timestamp.ofTimeSecondsAndNanos(ts.epochSecond, ts.nano))
                     }
                     else -> {
@@ -63,7 +59,7 @@ class DatastorePageOutput(
                 }
             }
 
-            if (key != null) entity.setKey(key) else throw ConfigException("column corresponding to key not found")
+            if (key != null) entity.setKey(key) else throw ConfigException("primary key column is not found")
             batch.put(entity.build())
             counter++
         }

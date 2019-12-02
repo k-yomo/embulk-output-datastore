@@ -17,7 +17,7 @@
 |  json_keyfile                        | string      | optional   |                          | google credentials jsont  |
 |  project_id                          | string      | required   |                          | project\_id |
 |  kind                                | string      | required   |                          | entity's kind  |
-|  key_column_name                     | string      | optional   | id                       | column name corresponding to key |
+|  key_column_name                     | string      | optional   | id                       | primary key column name (column must be either string or long) |
 
 ## Example
 
@@ -29,6 +29,7 @@ out:
   key_column_name: id
   json_keyfile: '{"client_id":"xxxxxxxxxxx.apps.googleusercontent.com","client_secret":"xxxxxxxxxxx","refresh_token":"xxxxxxxxxxx","type":"authorized_user"}'
 ```
+※ To test with emulator, check out [Running the Datastore mode Emulator](https://cloud.google.com/datastore/docs/tools/datastore-emulator).
 
 ### Authentication
 
